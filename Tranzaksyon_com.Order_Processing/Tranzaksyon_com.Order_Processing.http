@@ -1,0 +1,6 @@
+@Tranzaksyon_com.Order_Processing_HostAddress = http://localhost:5101
+
+GET {{Tranzaksyon_com.Order_Processing_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
