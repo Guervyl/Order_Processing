@@ -55,6 +55,7 @@ namespace WorkerService.Taks
                                 // Puede usar un mensaje diferente ya que son error diferentes
                                 logger.LogInformation("El elemento de trabajo en cola del order {order} ha sido cancelado.", order.Id);
                                 FetchedOrder.Status = OrderStates.Cancelado;
+                                CreateLogDb(context, FetchedOrder, "Ha sido cancelado.");
                             }
 
                             ++delayLoop;
@@ -66,24 +67,19 @@ namespace WorkerService.Taks
                         {
                             logger.LogInformation("El elemento de trabajo en cola del order {order} esta completado.", order.Id);
                             FetchedOrder.Status = OrderStates.Completado;
+                            CreateLogDb(context, FetchedOrder, "Ha sido completado.");
                         }
                         else
                         {
                             logger.LogInformation("El elemento de trabajo en cola del order {order} ha sido cancelado.", order.Id);
                             FetchedOrder.Status = OrderStates.Cancelado;
+                            CreateLogDb(context, FetchedOrder, "Ha sido cancelado.");
                         }
                     }
                     catch (Exception ex)
                     {
                         logger.LogError("Hubo un error ejecutando el order {order}. {error}", order.Id, ex.ToString());
-
-                        context.OrderLogs.Add(new OrderLog
-                        {
-                            Order = FetchedOrder,
-                            OrderId = FetchedOrder.Id,
-                            DateCreated = DateTime.Now,
-                            Error = ex.Message
-                        });
+                        CreateLogDb(context, FetchedOrder, ex.Message);
                     }
 
                     await context.SaveChangesAsync();
@@ -93,6 +89,17 @@ namespace WorkerService.Taks
             {
                 logger.LogError("Hubo un error ejecutando el order {order}. {error}", order.Id, ex.ToString());
             }
+        }
+
+        private static void CreateLogDb(AppSqlServerContext context, Order FetchedOrder, string error)
+        {
+            context.OrderLogs.Add(new OrderLog
+            {
+                Order = FetchedOrder,
+                OrderId = FetchedOrder.Id,
+                DateCreated = DateTime.Now,
+                Error = error
+            });
         }
     }
 }

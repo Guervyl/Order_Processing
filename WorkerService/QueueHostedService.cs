@@ -11,6 +11,19 @@ namespace WorkerService
         ILogger<QueuedHostedService> logger,
         IConfiguration configuration) : BackgroundService
     {
+        List<Task> tasks = new List<Task>();
+        int numJobs;
+
+        public override Task StartAsync(CancellationToken cancellationToken)
+        {
+            if (!int.TryParse(configuration["tareasMax"], out numJobs))
+            {
+                throw new ArgumentException("tareasMax no es un int");
+            }
+
+            return base.StartAsync(cancellationToken);
+        }
+
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             logger.LogInformation("""
@@ -27,19 +40,16 @@ namespace WorkerService
             {
                 try
                 {
-                    Task[] tasks = [];
-                    //Todo: Controlar si es null o no es int
-                    int numJobs = int.Parse(configuration["tareasMax"]);
+                    Func<CancellationToken, ValueTask>? workItem =
+                        await taskQueue.DequeueAsync(stoppingToken);
 
-                    for (int i = 0; i < numJobs; i++)
+                    tasks.Add(Task.Run(async () => await workItem(stoppingToken)));
+
+                    if (tasks.Count >= numJobs)
                     {
-                        Func<CancellationToken, ValueTask>? workItem =
-                            await taskQueue.DequeueAsync(stoppingToken);
-
-                        tasks.Append(Task.Run(async () => await workItem(stoppingToken)));
+                        await Task.WhenAll(tasks);
+                        tasks.Clear();
                     }
-
-                    Task.WaitAny(tasks);
                 }
                 catch (OperationCanceledException)
                 {
